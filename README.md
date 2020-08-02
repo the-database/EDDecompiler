@@ -1,8 +1,8 @@
 # EDDecompiler
 
-This projcet is forked from [Ouroboros/EDDecompiler](https://github.com/Ouroboros/EDDecompiler).
+This project is forked from [Ouroboros/EDDecompiler](https://github.com/Ouroboros/EDDecompiler) and [illidan2004/EDDecompiler](https://github.com/illidan2004/EDDecompiler).
 
-It can be used to decompile/recompile script files of PSP & PC games *Zero/Ao no Kiseki* and PC game *Trails in the Sky* series(Published by Xseed).   
+It can be used to decompile/recompile script files of PSP & PC games *Zero/Ao no Kiseki* and PC game *Trails in the Sky* series(Published by Xseed). This fork adds support for the Japanese version of the PS Vita Trails in the Sky Evolution series. 
 
 Just give the usage here:   
 ## 1. Install python3   
@@ -13,66 +13,34 @@ And install missing libs with this command:
 
 ## 2. clone **EDDecompiler** and **PyLibs**   
 ```
-    git clone https://github.com/ZhenjianYang/EDDecompiler   
+    git clone https://github.com/the-database/EDDecompiler   
     git clone https://github.com/ZhenjianYang/PyLibs   
 ```
 
 ## 3. Decompile
-
-### *Zero no Kiseki*:   
+### *Trails in the Sky FC Evolution*:   
 ```
     set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py EDDecompiler/Decompiler/ZeroScenarioScript.py --cp=<codepage> <scripts folder> 
+    python .\ED6FCEvoScenarioScript.py --gp="<game data folder>" <script file or folder>
 ```
-### *Ao no Kiseki*:   
-```
-    set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py EDDecompiler/Decompiler/ScenarioScript.py --cp=<codepage> <scripts folder>  
-```
-### *Trails in the Sky FC*:   
+### *Trails in the Sky SC Evolution*:   
 ```
     set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py EDDecompiler/Decompiler/ED6FCScenarioScript.py --cp=<codepage> --gp=<game folder> <scripts folder> 
+    python .\ED6SCEvoScenarioScript.py --gp="<game data folder>" <script file or folder>
 ```
-### *Trails in the Sky SC*:   
-```
-    set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py EDDecompiler/Decompiler/ED6SCScenarioScript.py --cp=<codepage> --gp=<game folder> <scripts folder> 
-```
-### *Trails in the Sky the 3rd*:   
+### *Trails in the Sky the 3rd Evolution*:   
 ```
     set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py EDDecompiler/Decompiler/ED63RDScenarioScript.py --cp=<codepage> --gp=<game folder> <scripts folder> 
+    python .\ED63RDEvoScenarioScript.py --gp="<game data folder>" <script file or folder>
 ```
 
-Scripts of *Zero no Kiseki* / *Ao no Kiseki* are **\.bin** files in `<game folder>/data/scena`.    
-For *Trails in the Sky* series, they are **\.\_SN** files extracted from **ED6_DT01.dat**/**ED6_DT21.dat** with tool [**falcncvt tool**](http://www.pokanchan.jp/dokuwiki/software/falcnvrt/start). 
-
-Parameter **--cp=\<codepage\>** is setting the codepage, default is gbk.   
-**NOTE**: The codepage of *Trails in the Sky* series (English version) is **ms932**, **NOT** ASCII.
+The game data folder refers to the folder containing the scenario folder (data, data_sc, or data_3rd). This must be extracted from the data.psarc file. 
 
 Decompiled scripts will have a filename like **xxxx.py** (xxxx stands for the script's name).
 
-And in projcet [Ouroboros/ED6-FC-Steam-CN](https://github.com/Ouroboros/ED6-FC-Steam-CN), you can find 
-decompiled Chinese scripts of *Trails in the Sky FC*. 
-
 ## 4. Recompile   
-***Zero no Kiseki*** / ***Ao no Kiseki***:   
-```
-    set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py <decompiled script file> --cp=<codepage> <output folder>
-```
-***Trails in the Sky*** series:   
+***Trails in the Sky Evolution*** series:   
 ```
     set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
     py <decompiled script file> --cp=<codepage> --gp=<game folder> <output folder>
 ```
-
-## About Custom Encoding
-
-You can use "--cp=\<codepage\>" to assign codepage during decompiling and recompiling.
-
-Or use "--cppy=\<path of python script of encoding\>" to assign a custom encoding.
-
-[CSjis](https://github.com/ZhenjianYang/CSjis) is a custom Shift-JIS encoding,
-which is defined by **jis2ucs.bin** and **ucs2jis.bin**.
