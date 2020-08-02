@@ -42,5 +42,5 @@ Decompiled scripts will have a filename like **xxxx.py** (xxxx stands for the sc
 ***Trails in the Sky Evolution*** series:   
 ```
     set PYTHONPATH=EDDecompiler/Decompiler;PyLibs
-    py <decompiled script file> --cp=<codepage> --gp=<game folder> <output folder>
+    python <decompiled script file> --gp=<game folder> <output folder>
 ```
