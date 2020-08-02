@@ -389,38 +389,13 @@ class EDAOScenaInstructionTableEntry(InstructionTableEntry):
         fs = data.FileStream
         labels = data.Instruction.Labels
 
-        def enc_str(str):
-            ret = bytearray()
-            i = 0
-            while i < len(str):
-                if ord(str[i]) == SCPSTR_CODE_ITEM:
-                    ret.append(ord(str[i]))
-                    ret.append(ord(str[i+1]))
-                    ret.append(ord(str[i+2]))
-                    i += 3
-                elif ord(str[i]) == SCPSTR_CODE_COLOR:
-                    ret.append(ord(str[i]))
-                    ret.append(ord(str[i+1]))
-                    i += 2
-                elif ord(str[i]) < 0x20:
-                    ret.append(ord(str[i]))
-                    i += 1
-                else:
-                    ret.extend(str[i].encode(CODE_PAGE))
-                    i += 1
-            return bytes(ret)
-
         def wexpr(value):
             for expr in value:
                 expr.WriteExpression(data)
 
         def wstr(value, recursion = False):
             if type(value) == str:
-                value = enc_str(value)
-                if not recursion:
-                    value += b'\x00'
-
-            elif type(value) == bytes:
+                value = value.encode(CODE_PAGE)
                 if not recursion:
                     value += b'\x00'
 
@@ -481,8 +456,6 @@ class EDAOScenaInstructionTableEntry(InstructionTableEntry):
             string = []
             tmpstr = ''
 
-            notJis = not ('932' in self.Container.CodePage or 'shift' in self.Container.CodePage.lower())
-
             while True:
                 buf = fs.read(1)
 
@@ -540,10 +513,13 @@ class EDAOScenaInstructionTableEntry(InstructionTableEntry):
 
                     continue
 
-                elif buf >= b'\x80':
-                    if notJis or buf < b'\xA0' or buf >= b'\xE0':
-                        buf += fs.read(1)
+                elif buf >= b'\xa1' and buf <= b'\xdf':
+                    pass # Single-byte half-width katakana
 
+                elif buf >= b'\x80':
+
+                    buf += fs.read(1)
+                
                 tmpstr += buf.decode(self.Container.CodePage)
 
             return string

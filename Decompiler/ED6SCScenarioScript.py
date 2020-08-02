@@ -2,9 +2,6 @@ from Assembler.Assembler2 import *
 from Base.ED6FCBase import *
 import Instruction.ScenaOpTableED6SC as ed6sc
 
-import importlib.machinery
-import os
-
 ExtractText = not True
 # ed6sc.CODE_PAGE = '932'
 # CODE_PAGE = ed6sc.CODE_PAGE
@@ -509,12 +506,6 @@ class ScenarioInfo:
 
         self.StringTable = buf.decode(ed6sc.CODE_PAGE).split('\x00')
 
-        l = len(self.StringTable)
-        while l > 1 and len(self.StringTable[l-1]) == 0:
-            l -= 1
-        if l < len(self.StringTable) - 5:
-            self.StringTable = self.StringTable[0:l + 5]
-
         if ExtractText:
             textPosTable[self.scenaName] = [self.StringTable]
         else:
@@ -953,7 +944,7 @@ def main():
     CODE_PAGE = cp
     ed6sc.CODE_PAGE = cp
     ed6sc.ed6sc_op_table.CodePage = cp
-    setCodePage(cp)
+    setCodePage(cp);
 
     global GAME_PATH
     GAME_PATH = gp

@@ -1,5 +1,5 @@
 from Assembler.InstructionTable import *
-from Base.ED6FCBase import *
+from Base.ED63RDEvoBase import *
 from GameData.ItemNameMap import *
 
 def GetOpCode(fs):
@@ -246,6 +246,22 @@ InstructionNames[0xE6]  = 'OP_E6'
 InstructionNames[0xE7]  = 'OP_E7'
 InstructionNames[0xEA]  = 'OP_EA'
 InstructionNames[0xF7]  = 'OP_F7'
+
+InstructionNames[0xE8]  = 'OP_E8'
+InstructionNames[0xE9]  = 'OP_E9'
+InstructionNames[0xED]  = 'OP_ED'
+InstructionNames[0xF0]  = 'OP_F0'
+InstructionNames[0xF1]  = 'OP_F1'
+InstructionNames[0xF2]  = 'OP_F2'
+InstructionNames[0xF3]  = 'OP_F3'
+InstructionNames[0xF5]  = 'OP_F5'
+InstructionNames[0xF8]  = 'OP_F8'
+InstructionNames[0xF9]  = 'OP_F9'
+InstructionNames[0xFA]  = 'OP_FA'
+InstructionNames[0xFB]  = 'OP_FB'
+InstructionNames[0xFC]  = 'OP_FC'
+InstructionNames[0xFD]  = 'OP_FD'
+InstructionNames[0xFE]  = 'OP_FE'
 
 
 for op, name in InstructionNames.items():
@@ -1710,6 +1726,14 @@ def scp_set_scenario_flags(data):
 def scp_clear_scenario_flags(data):
     return scp_set_scenario_flags(data)
 
+
+def scp_fe(data):
+    print('scp_fe reason', data.Reason)
+    if data.Reason == HANDLER_REASON_FORMAT:
+        print('fe?')
+        return FormatFuncString(data, data.Instruction.OperandFormat, -1)
+
+
 ed63rd_op_list = \
 [
     inst(ExitThread),                                                                                   # 00
@@ -1735,7 +1759,7 @@ ed63rd_op_list = \
     inst(BlurSwitch,                'LLLBL'),       # 14 
     inst(OP_15,                     'L'),
     inst(OP_16,                     NO_OPERAND,             0,                          scp_16),
-    inst(ShowSaveMenu),                             # 17 
+    inst(ShowSaveMenu, 'B'),                             # 17 
     inst(OP_18),
     inst(EventBegin,                'B'),           # 19 
     inst(EventEnd,                  'B'),           # 1A  
@@ -1825,8 +1849,8 @@ ed63rd_op_list = \
     inst(OP_6E,                     'ii'),
     inst(OP_6F,                     'Wi'),
     inst(OP_70,                     'WL'),
-    inst(OP_71,                     'WW'),
-    inst(OP_72,                     'WW'),
+    inst(OP_71,                     'WWB'),
+    inst(OP_72,                     'WWB'),
     inst(OP_73,                     'W'),
     inst(OP_74,                     'WLW'),
     inst(OP_75,                     'BLB'),
@@ -1914,7 +1938,7 @@ ed63rd_op_list = \
     inst(OP_C7,                     'BBB'),
     inst(OP_C8,                     'WWSBW'),
     inst(OP_C9,                     NO_OPERAND,     0,                                  scp_c9),
-    inst(OP_CA,                     'BBL'),
+    inst(OP_CA,                     'BBBBBBBBBB'),
     inst(OP_CB,                     NO_OPERAND,     0,                                  scp_cb),
     inst(OP_CC,                     NO_OPERAND,     0,                                  scp_cc),
     inst(OP_CD,                     'W'),
@@ -1946,6 +1970,22 @@ ed63rd_op_list = \
     inst(OP_E7,                     'BBBBBBI'),
     inst(OP_EA),
     inst(OP_F7,                     'BWB'),
+
+    inst(OP_E8,                     ''),
+    inst(OP_E9,                     ''),
+    inst(OP_ED,                     'BBBBBBBBBBBBB'),
+    inst(OP_F0,                     'BBBB'),
+    inst(OP_F1,                     'BBB'),
+    inst(OP_F2,                     'BBBBBBB'),
+    inst(OP_F3,                     'BB'),
+    inst(OP_F5,                     'BBBB'),
+    inst(OP_F8,                     'W'),
+    inst(OP_F9,                     'BBB'),
+    inst(OP_FA,                     'BBBBBB'),
+    inst(OP_FB,                     'BBBB'),
+    inst(OP_FC,                     'BB'),
+    inst(OP_FD,                     'W'),
+    inst(OP_FE,                     'S',                    0,                           scp_fe),
 ]
 
 del inst

@@ -1,6 +1,6 @@
 from Base.BaseType import *
 
-CODE_PAGE = 'NotSet'
+CODE_PAGE = 'cp932'
 
 SEPITH_CHI  = 0
 SEPITH_MIZU = 1

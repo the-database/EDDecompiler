@@ -1,6 +1,6 @@
 from Base.BaseType import *
 
-CODE_PAGE = 'NotSet'
+CODE_PAGE = 'cp932'
 
 #GAME_PATH = r'D:\Steam\steamapps\common\Trails in the Sky FC'
 GAME_PATH = 'NotSet'

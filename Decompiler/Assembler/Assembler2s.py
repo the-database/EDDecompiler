@@ -10,12 +10,12 @@ class Log:
         Log.flog.close()
 
 def plog(*args):
-    pass
-    #print(*args)
-    #Log.flog.write(*args)
-    #Log.flog.write('\n')
+    # pass
+    print(*args)
+    Log.flog.write(*args)
+    Log.flog.write('\n')
 
-#plog = print
+plog = print
 
 offsetlist = {}
 disasmtbl = {}
@@ -145,7 +145,10 @@ class Disassembler:
 
             # print('%08X: ' % pos, end = '')
             op = InstructionTable.GetOpCode(fs)
-            # print('%02X' % op)
+            
+            if op not in InstructionTable:
+                raise RuntimeError('%02X' % op)
+                exit()
 
             entry = InstructionTable[op]
 
@@ -173,6 +176,8 @@ class Disassembler:
 
             if self.HandleInstructionCallback:
                 self.HandleInstructionCallback(data)
+
+            plog('    %08X: %s %s' % (pos, entry.OpName, inst.Operand))
 
             return inst
 
@@ -240,8 +245,9 @@ class Disassembler:
     def DefaultFormatInstruction(self, data):
         inst = data.Instruction
         entry = data.TableEntry
-
+        print('inst',inst.OpCode,hex(inst.Offset),inst.Operand)
         opname = entry.OpName
+        print('opname', opname)
         oprlist = entry.FormatAllOperand(
                         BuildFormatOperandParameterList(
                             inst.OperandFormat,
@@ -378,9 +384,9 @@ class Disassembler:
             #print('%08X' % inst.Offset)
             #del disasmtbl[inst.Offset]
 
-            #print('%08X %02X: ' % (inst.Offset, inst.OpCode), end  = '')
+            # print('%08X %02X: ' % (inst.Offset, inst.OpCode), end  = '')
             symbol = FormatInstructionWrap(handlerdata)
-            #print(symbol)
+            # print(symbol,'??')
 
             text += symbol
 

@@ -1379,9 +1379,20 @@ class ScenarioInfo:
 
                     filename = '%s.%s%s' % (filename, mapname, ext)
 
+        # fs = open(filename, 'wb')
+        # fs.write(''.encode('utf_8_sig'))
+        # fs.write('\r\n'.join(lines).encode('UTF8'))
+
         fs = open(filename, 'wb')
-        fs.write(''.encode('utf_8_sig'))
-        fs.write('\r\n'.join(lines).encode('UTF8'))
+        fs.write(''.encode('cp932'))
+        # print([line for line in lines])
+        for line in lines:
+            try:
+                print (line)
+            except:
+                print('skip')
+                pass
+        fs.write('\r\n'.join(lines).encode('cp932'))
 
     def __str__(self):
         info = []

@@ -124,7 +124,7 @@ def main():
     for name in sys.argv[1:]:
         handleFile(os.path.abspath(name))
 
-    console.pause('done')
+    PauseConsole('done')
 
 if __name__ == '__main__':
     Try(main)

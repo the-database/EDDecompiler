@@ -10,6 +10,7 @@ def DefaultOpCodeHandler(data):
     entry.Container.WriteOpCode(fs, inst.OpCode)
 
     if len(oprs) != len(values):
+        print(oprs, values)
         raise Exception('operand: does not match values')
 
     for i in range(len(oprs)):

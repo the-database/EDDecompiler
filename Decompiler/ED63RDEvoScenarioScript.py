@@ -1,6 +1,6 @@
 from Assembler.Assembler2 import *
-from Base.ED6FCBase import *
-import Instruction.ScenaOpTableED63RD as ed63rd
+from Base.ED63RDEvoBase import *
+import Instruction.ScenaOpTableED63RDEvo as ed63rd
 
 ExtractText = not True
 # ed63rd.CODE_PAGE = '932'
@@ -54,6 +54,7 @@ class ScenarioEntryPoint:
         self.InitFunctionIndex  = fs.ReadUShort()        # byte
         self.EntryScenaIndex    = fs.ReadUShort()
         self.EntryFunctionIndex = fs.ReadUShort()       # byte
+        # self.Unknown_44         = fs.ReadUShort()
 
     def params(self):
         align = 24
@@ -81,6 +82,7 @@ class ScenarioEntryPoint:
             '%s %s,' % (alignFormatKw(align, 'InitFunctionIndex'),  self.InitFunctionIndex),
             '%s %s,' % (alignFormatKw(align, 'EntryScenaIndex'),    self.EntryScenaIndex),
             '%s %s,' % (alignFormatKw(align, 'EntryFunctionIndex'), self.EntryFunctionIndex),
+            # '%s %s,' % (alignFormatKw(align, 'Unknown_44'), self.Unknown_44)
         ]
 
     def binary(self):
@@ -108,6 +110,7 @@ class ScenarioEntryPoint:
                     USHORT(self.InitFunctionIndex).value,
                     USHORT(self.EntryScenaIndex).value,
                     USHORT(self.EntryFunctionIndex).value,
+                    # USHORT(self.Unknown_44).value
                 )
 
 class ScenarioNpcInfo:
@@ -387,14 +390,32 @@ class ScenarioInfo:
         buffer.WriteUShort(self.Reserved)
 
         for i in range(len(self.ScnInfoOffset)):
+            # evo hack
+            # if len(self.ScnInfo[0]) == 0:
+                # self.ScnInfoOffset[i] += 1
+            # if len(self.ScnInfo[1]) == 0:
+                # self.ScnInfoOffset[i] += 1
             buffer.WriteUShort(self.ScnInfoOffset[i])
             buffer.WriteUShort(self.ScnInfoNumber[i])
 
         buffer.WriteUShort(self.StringTableOffset)
+        print('stingtableoffset', hex(self.StringTableOffset))
+        if self.StringTableOffset > 0xffff:
+            raise RuntimeError("this file is too big ")
         buffer.WriteULong(self.HeaderEndOffset)
 
         buffer.WriteUShort(self.ScenaFunctionTable.Offset)
         buffer.WriteUShort(self.ScenaFunctionTable.Size)
+
+        # evo hack
+        # print('evo hack', self.ScnInfo)
+        # if len(self.ScnInfo[0]) == 0:
+        #     print('yes1')
+        #     buffer.Write(b'yes1!!!!!!!!!!!!!!!!!!')
+        # if len(self.ScnInfo[1]) == 0:
+        #     print('yes2')
+        #     buffer.Write(b'yes2!!!!!!!!!!!!!!!!!!')
+
 
         buffer.Position = 0
 
@@ -425,7 +446,17 @@ class ScenarioInfo:
         self.HeaderEndOffset    = fs.ReadULong()
         self.ScenaFunctionTable = ScenarioEntry(fs.ReadUShort(), fs.ReadUShort())
 
+        print('offset',hex(self.ScenaFunctionTable.Offset))
+        print('efi',hex(self.EntryFunctionIndex))
+        print('res',hex(self.Reserved))
+        print('sio',[(hex(entry.Offset), hex(entry.Size)) for entry in self.ScnInfoOffset])
+        print('heo',hex(self.HeaderEndOffset))
+
         self.IncludedScenario.index(0xFFFFFFFF)
+
+        print('tell', hex(fs.tell()), hex(fs.Position))
+
+        print(hex(self.ScnInfoOffset[0].Offset), hex(fs.Position), (self.ScnInfoOffset[0].Offset - fs.Position) // 0x44)
 
         self.EntryPoint = [ScenarioEntryPoint(fs) for i in range((self.ScnInfoOffset[0].Offset - fs.Position) // 0x44)]
 
@@ -494,6 +525,7 @@ class ScenarioInfo:
             fs.seek(self.ScnInfoOffset[i].Offset)
             ScnInfoType = ScnInfoTypes[i]
             for n in range(self.ScnInfoOffset[i].Size):
+                print('?',i,ScnInfoType)
                 self.ScnInfo[i].append(ScnInfoType(fs))
 
     def InitOtherInfo(self, fs):
@@ -506,6 +538,7 @@ class ScenarioInfo:
         #endmz = buf.find(b'\x00\x00')
         #if endmz != -1:
         #    buf = buf[:endmz]
+        print('buf',hex(self.StringTableOffset), buf)
 
         if len(buf) > 0 and buf[-1] == 0:
             buf = buf[0:-1]
@@ -701,7 +734,7 @@ class ScenarioInfo:
         return lines
 
     def GenerateHeader(self, filename):
-        filename = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0] + '._SN'
+        filename = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0] + '.bin'
 
         mapname = self.PlaceName or self.GetMapNameByIndex(self.MapIndex)
 
@@ -709,7 +742,7 @@ class ScenarioInfo:
 
         hdr = []
         hdr.append('# -*- coding: cp932 -*-')
-        hdr.append('from ED63RDScenarioHelper import *')
+        hdr.append('from ED63RDEvoScenarioHelper import *')
         hdr.append('')
         hdr.append('SetCodePage("%s")'                          % ed63rd.CODE_PAGE)
         hdr.append('')
@@ -739,7 +772,10 @@ class ScenarioInfo:
 
         def AppendScpInfo(info, func):
             if len(info) == 0:
-                return
+                hdr.append('%s(' % func)
+                hdr.append(')')
+                hdr.append('')
+                # return
 
             for i in info:
                 if hasattr(i, 'params'):
@@ -756,9 +792,8 @@ class ScenarioInfo:
 
         AppendScpInfo(self.EntryPoint, 'DeclEntryPoint')
 
+        hdr.append('AddCharChip(')
         if len(self.ScnInfo[SCN_INFO_CHIP]) != 0:
-            hdr.append('AddCharChip(')
-
             index = 0
             for chip in self.ScnInfo[SCN_INFO_CHIP]:
                 x = ('    %s,' % chip.param()).ljust(40)
@@ -766,12 +801,11 @@ class ScenarioInfo:
                 hdr.append(x)
                 index += 1
 
-            hdr.append(')')
-            hdr.append('')
+        hdr.append(')')
+        hdr.append('')
 
+        hdr.append('AddCharChipPat(')
         if len(self.ScnInfo[SCN_INFO_CHIP_PAT]) != 0:
-            hdr.append('AddCharChipPat(')
-
             index = 0
             for chip in self.ScnInfo[SCN_INFO_CHIP_PAT]:
                 x = ('    %s,' % chip.param()).ljust(40)
@@ -779,8 +813,8 @@ class ScenarioInfo:
                 hdr.append(x)
                 index += 1
 
-            hdr.append(')')
-            hdr.append('')
+        hdr.append(')')
+        hdr.append('')
 
         AppendScpInfo(self.ScnInfo[SCN_INFO_NPC],       'DeclNpc')
         AppendScpInfo(self.ScnInfo[SCN_INFO_MONSTER],   'DeclMonster')
@@ -930,7 +964,7 @@ def main():
     #    textPosTable = json.load(open('fc_sn_text_final.json', 'r', encoding = 'utf-8-sig'))
     #    replaceOption = json.load(open('replace_option.json', 'r', encoding = 'utf-8-sig'))
 
-    cp = 'gbk'
+    cp = 'cp932'
     gp = r'D:\Steam\steamapps\common\Trails in the Sky FC'
     files = []
     i = 1
@@ -952,7 +986,7 @@ def main():
         elif sys.argv[i].lower() == '--indexlabel=true':
             use_index_lable = True
         else:
-            files.extend(iterlib.forEachGetFiles(sys.argv[i], '*._SN'))
+            files.extend(iterlib.forEachGetFiles(sys.argv[i], '*.bin'))
 
         i += 1
 

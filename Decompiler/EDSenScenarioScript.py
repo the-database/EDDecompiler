@@ -1,10 +1,10 @@
 from Assembler.Assembler2 import *
-from Base.ED6FCBase import *
-import Instruction.ScenaOpTableED63RD as ed63rd
+from Base.EDSenBase import *
+import Instruction.ScenaOpTableEDSen as edsen
 
 ExtractText = not True
-# ed63rd.CODE_PAGE = '932'
-# CODE_PAGE = ed63rd.CODE_PAGE
+# edsen.CODE_PAGE = '932'
+# CODE_PAGE = edsen.CODE_PAGE
 
 NUMBER_OF_INCLUDE_FILE  = 8
 
@@ -374,8 +374,8 @@ class ScenarioInfo:
     def binary(self):
         buffer = fileio.FileStream(b'')
 
-        buffer.Write(self.MapName.encode(ed63rd.CODE_PAGE).ljust(0xA, b'\x00')[:0xA])
-        buffer.Write(self.Location.encode(ed63rd.CODE_PAGE).ljust(0xE, b'\x00')[:0xE])
+        buffer.Write(self.MapName.encode(edsen.CODE_PAGE).ljust(0xA, b'\x00')[:0xA])
+        buffer.Write(self.Location.encode(edsen.CODE_PAGE).ljust(0xE, b'\x00')[:0xE])
         buffer.WriteUShort(self.MapIndex)
         buffer.WriteUShort(self.MapDefaultBGM.Index())
         buffer.WriteUShort(self.Flags)
@@ -412,8 +412,8 @@ class ScenarioInfo:
 
         # file header
 
-        self.MapName            = fs.read(0xA).decode(ed63rd.CODE_PAGE).split('\x00', 1)[0]
-        self.Location           = fs.read(0xE).decode(ed63rd.CODE_PAGE).split('\x00', 1)[0]
+        self.MapName            = fs.read(0xA).decode(edsen.CODE_PAGE).split('\x00', 1)[0]
+        self.Location           = fs.read(0xE).decode(edsen.CODE_PAGE).split('\x00', 1)[0]
         self.MapIndex           = fs.ReadUShort()
         self.MapDefaultBGM      = BGMFileIndex(fs.ReadUShort())
         self.Flags              = fs.ReadUShort()
@@ -510,7 +510,7 @@ class ScenarioInfo:
         if len(buf) > 0 and buf[-1] == 0:
             buf = buf[0:-1]
 
-        self.StringTable = buf.decode(ed63rd.CODE_PAGE).split('\x00')
+        self.StringTable = buf.decode(edsen.CODE_PAGE).split('\x00')
 
         if ExtractText:
             textPosTable[self.scenaName] = [self.StringTable]
@@ -529,32 +529,32 @@ class ScenarioInfo:
 
         inst, fs = data.Instruction, data.FileStream
 
-        if inst.OpCode == ed63rd.SetPlaceName:
+        if inst.OpCode == edsen.SetPlaceName:
             self.PlaceName = self.GetMapNameByIndex(inst.Operand[0])
 
         if inst.OpCode not in [
-                ed63rd.ChrTalk,
-                ed63rd.AnonymousTalk,
-                ed63rd.NpcTalk,
-                ed63rd.Menu,
-                ed63rd.SetChrName
+                edsen.ChrTalk,
+                edsen.AnonymousTalk,
+                edsen.NpcTalk,
+                edsen.Menu,
+                edsen.SetChrName
             ]:
             return
 
         if ExtractText:
-            if inst.OpCode == ed63rd.ChrTalk:
+            if inst.OpCode == edsen.ChrTalk:
                 text = inst.Operand[1]
                 textPosTable[self.scenaName].append([s.dump() for s in text])
 
-            elif inst.OpCode == ed63rd.AnonymousTalk:
+            elif inst.OpCode == edsen.AnonymousTalk:
                 text = inst.Operand[0]
                 textPosTable[self.scenaName].append([s.dump() for s in text])
 
-            elif inst.OpCode == ed63rd.NpcTalk:
+            elif inst.OpCode == edsen.NpcTalk:
                 for text in inst.Operand[1:]:
                     textPosTable[self.scenaName].append([s.dump() for s in text])
 
-            elif inst.OpCode in [ed63rd.Menu, ed63rd.SetChrName]:
+            elif inst.OpCode in [edsen.Menu, edsen.SetChrName]:
                 text = inst.Operand[-1]
                 textPosTable[self.scenaName].append([s.dump() for s in text])
 
@@ -582,19 +582,19 @@ class ScenarioInfo:
 
                 return False
 
-            if inst.OpCode == ed63rd.ChrTalk:
+            if inst.OpCode == edsen.ChrTalk:
                 if checkIgnore([1]):
                     return
 
                 inst.Operand[1] = self.loadScpStringList(cntext[self.scenaTextIndex])
 
-            elif inst.OpCode == ed63rd.AnonymousTalk:
+            elif inst.OpCode == edsen.AnonymousTalk:
                 if checkIgnore([0]):
                     return
 
                 inst.Operand[0] = self.loadScpStringList(cntext[self.scenaTextIndex])
 
-            elif inst.OpCode == ed63rd.NpcTalk:
+            elif inst.OpCode == edsen.NpcTalk:
                 if checkIgnore([1, 2]):
                     return
 
@@ -602,7 +602,7 @@ class ScenarioInfo:
                 inst.Operand[2] = self.loadScpStringList(cntext[self.scenaTextIndex + 1])
                 self.scenaTextIndex += 1
 
-            elif inst.OpCode in [ed63rd.Menu, ed63rd.SetChrName]:
+            elif inst.OpCode in [edsen.Menu, edsen.SetChrName]:
                 if checkIgnore([-1]):
                     return
 
@@ -611,10 +611,10 @@ class ScenarioInfo:
             self.scenaTextIndex += 1
 
     def loadScpStringList(self, paramList):
-        return [ed63rd.ScpString(**p) for p in paramList]
+        return [edsen.ScpString(**p) for p in paramList]
 
     def DisassembleBlocks(self, fs):
-        disasm = Disassembler(ed63rd.ed63rd_op_table, self.DiasmInstructionCallback)
+        disasm = Disassembler(edsen.edsen_op_table, self.DiasmInstructionCallback)
 
         index = -1
         codeblocks = []
@@ -653,12 +653,12 @@ class ScenarioInfo:
         return l
 
     def FormatInstructionCallback(self, data, text):
-        if data.Instruction.OpCode == ed63rd.SetPlaceName and self.PlaceName:
+        if data.Instruction.OpCode == edsen.SetPlaceName and self.PlaceName:
             return [text[0] + ' # ' + self.PlaceName]
 
     def FormatCodeBlocks(self):
-        ed63rd.ed63rd_op_table.FunctionLabelList = self.GenerateFunctionLabelList(self.CodeBlocks)
-        disasm = Disassembler(ed63rd.ed63rd_op_table, self.FormatInstructionCallback)
+        edsen.edsen_op_table.FunctionLabelList = self.GenerateFunctionLabelList(self.CodeBlocks)
+        disasm = Disassembler(edsen.edsen_op_table, self.FormatInstructionCallback)
 
         blocks = []
         blockoffsetmap = {}
@@ -701,7 +701,7 @@ class ScenarioInfo:
         return lines
 
     def GenerateHeader(self, filename):
-        filename = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0] + '._SN'
+        filename = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0] + '.dat'
 
         mapname = self.PlaceName or self.GetMapNameByIndex(self.MapIndex)
 
@@ -709,9 +709,9 @@ class ScenarioInfo:
 
         hdr = []
         hdr.append('# -*- coding: cp932 -*-')
-        hdr.append('from ED63RDScenarioHelper import *')
+        hdr.append('from edsenScenarioHelper import *')
         hdr.append('')
-        hdr.append('SetCodePage("%s")'                          % ed63rd.CODE_PAGE)
+        hdr.append('SetCodePage("%s")'                          % edsen.CODE_PAGE)
         hdr.append('')
 
         print('map', mapname)
@@ -952,14 +952,14 @@ def main():
         elif sys.argv[i].lower() == '--indexlabel=true':
             use_index_lable = True
         else:
-            files.extend(iterlib.forEachGetFiles(sys.argv[i], '*._SN'))
+            files.extend(iterlib.forEachGetFiles(sys.argv[i], '*.dat'))
 
         i += 1
 
     global CODE_PAGE
     CODE_PAGE = cp
-    ed63rd.CODE_PAGE = cp
-    ed63rd.ed63rd_op_table.CodePage = cp
+    edsen.CODE_PAGE = cp
+    edsen.edsen_op_table.CodePage = cp
     setCodePage(cp);
 
     global GAME_PATH
@@ -970,16 +970,16 @@ def main():
     global USE_INDEX_LABEL_NAME
     if use_index_lable:
         USE_INDEX_LABEL_NAME = True
-        ed63rd.USE_INDEX_LABEL_NAME = True
-        ed63rd.UseIndexLabelName()
+        edsen.USE_INDEX_LABEL_NAME = True
+        edsen.UseIndexLabelName()
     
     #Log.OpenLog(sys.argv[start_argv] + '\..\log.txt')
 
     global LAMBDA_INDEX
     for file in files:
         plog('START %s' % file)
-        ed63rd.ResetIndex()
-        ed63rd.ResetLabmdaIndex()
+        edsen.ResetIndex()
+        edsen.ResetLabmdaIndex()
         procfile(file, append_place_name)
         plog('FINISHED %s' % file)
 

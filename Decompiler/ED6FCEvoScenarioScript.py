@@ -1,10 +1,10 @@
 from Assembler.Assembler2 import *
-from Base.ED6FCBase import *
-import Instruction.ScenaOpTableED63RD as ed63rd
+from Base.ED6FCEvoBase import *
+# from sets import Set
+import Instruction.ScenaOpTableED6FCEvo as ed6fc
 
-ExtractText = not True
-# ed63rd.CODE_PAGE = '932'
-# CODE_PAGE = ed63rd.CODE_PAGE
+# ed6fc.CODE_PAGE = '932'
+CODE_PAGE = ed6fc.CODE_PAGE
 
 NUMBER_OF_INCLUDE_FILE  = 8
 
@@ -17,7 +17,7 @@ SCN_INFO_ACTOR          = 5
 SCN_INFO_MAXIMUM        = 6
 
 textPosTable = OrderedDict()
-replaceOption = {}
+ExtractText = True
 
 class ScenarioEntry:
     def __init__(self, offset = 0, size = 0):
@@ -359,7 +359,7 @@ class ScenarioInfo:
         # file header end
 
         self.ScenaFunctions     = []
-        self.PlaceName          = ''
+        self.PlaceName          = []
         self.StringTable        = []
         self.ScnInfo            = []
         self.CodeBlocks         = []
@@ -374,8 +374,8 @@ class ScenarioInfo:
     def binary(self):
         buffer = fileio.FileStream(b'')
 
-        buffer.Write(self.MapName.encode(ed63rd.CODE_PAGE).ljust(0xA, b'\x00')[:0xA])
-        buffer.Write(self.Location.encode(ed63rd.CODE_PAGE).ljust(0xE, b'\x00')[:0xE])
+        buffer.Write(self.MapName.encode(CODE_PAGE).ljust(0xA, b'\x00')[:0xA])
+        buffer.Write(self.Location.encode(CODE_PAGE).ljust(0xE, b'\x00')[:0xE])
         buffer.WriteUShort(self.MapIndex)
         buffer.WriteUShort(self.MapDefaultBGM.Index())
         buffer.WriteUShort(self.Flags)
@@ -405,15 +405,13 @@ class ScenarioInfo:
         if fs.Length == 0:
             return False
 
-        self.InitMapNameList(scenafile)
-
-        self.scenaName = os.path.splitext(os.path.basename(scenafile))[0].strip().upper()
+        self.scenaName = os.path.splitext(os.path.basename(scenafile))[0].strip()
         self.scenaTextIndex = 1
 
         # file header
 
-        self.MapName            = fs.read(0xA).decode(ed63rd.CODE_PAGE).split('\x00', 1)[0]
-        self.Location           = fs.read(0xE).decode(ed63rd.CODE_PAGE).split('\x00', 1)[0]
+        self.MapName            = fs.read(0xA).decode(CODE_PAGE).split('\x00', 1)[0]
+        self.Location           = fs.read(0xE).decode(CODE_PAGE).split('\x00', 1)[0]
         self.MapIndex           = fs.ReadUShort()
         self.MapDefaultBGM      = BGMFileIndex(fs.ReadUShort())
         self.Flags              = fs.ReadUShort()
@@ -422,8 +420,16 @@ class ScenarioInfo:
         self.Reserved           = fs.ReadUShort()
         self.ScnInfoOffset      = [ScenarioEntry(fs.ReadUShort(), fs.ReadUShort()) for _ in range(SCN_INFO_MAXIMUM)]
         self.StringTableOffset  = fs.ReadUShort()
+        print('tell',hex(fs.tell()))
         self.HeaderEndOffset    = fs.ReadULong()
         self.ScenaFunctionTable = ScenarioEntry(fs.ReadUShort(), fs.ReadUShort())
+
+        print('offset',hex(self.ScenaFunctionTable.Offset))
+        print('efi',hex(self.EntryFunctionIndex))
+        print('res',hex(self.Reserved))
+        print('sio',[(hex(entry.Offset), hex(entry.Size)) for entry in self.ScnInfoOffset])
+        print('heo',hex(self.HeaderEndOffset))
+
 
         self.IncludedScenario.index(0xFFFFFFFF)
 
@@ -436,12 +442,18 @@ class ScenarioInfo:
 
         self.CodeBlocks = self.DisassembleBlocks(fs)
 
+        self.InitMapNameList(scenafile)
+
+        # print('mapnamelist',self.MapNameList)
+
 
     def InitMapNameList(self, scenafile):
         self.MapNameList = []
 
         try:
-            t_town = os.path.abspath(os.path.join(GAME_PATH, 'ED6_DT02\\T_TOWN  ._DT'))
+            # t_town = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(scenafile)), '../ED6_DT02/T_TOWN  ._DT'))
+            t_town = GAME_PATH + '/ED6_DT02/T_TOWN  ._DT'
+            # t_town = 'D:/file/kiseki evo/FC-VITA-JPN-SOURCE/PCSG00488.VPK/gamedata/data/text/t_town._dt'
             town = fileio.FileStream(t_town)
 
             offsetlist = []
@@ -450,28 +462,10 @@ class ScenarioInfo:
 
             for offset in offsetlist:
                 town.seek(offset)
-                self.MapNameList.append(town.ReadMultiByte('GBK'))
+                self.MapNameList.append(town.ReadMultiByte(CODE_PAGE))
 
         except:
             self.MapNameList = []
-
-    # def GetMapNameByIndex(self, index):
-    #     if self.MapName.startswith('map'):
-    #         return '调试地图'
-
-    #     if index == 1:
-    #         return {
-    #             'rolent'    : '洛连特',
-    #             'zeiss'     : '蔡斯',
-    #             'grancel'   : '格兰赛尔',
-    #             'ruan'      : '卢安',
-    #             'bose'      : '柏斯',
-    #         }.get(self.MapName.lower(), '')
-
-    #     if index >= len(self.MapNameList):
-    #         return ''
-
-    #     return self.MapNameList[index]
 
     def GetMapNameByIndex(self, index):
         if index >= len(self.MapNameList):
@@ -494,6 +488,7 @@ class ScenarioInfo:
             fs.seek(self.ScnInfoOffset[i].Offset)
             ScnInfoType = ScnInfoTypes[i]
             for n in range(self.ScnInfoOffset[i].Size):
+                print('?',i,ScnInfoType)
                 self.ScnInfo[i].append(ScnInfoType(fs))
 
     def InitOtherInfo(self, fs):
@@ -503,14 +498,13 @@ class ScenarioInfo:
         fs.seek(self.StringTableOffset)
 
         buf = fs.read()
-        #endmz = buf.find(b'\x00\x00')
-        #if endmz != -1:
-        #    buf = buf[:endmz]
+        # endmz = buf.find(b'\x00\x00')
+        # if endmz != -1:
+        #     buf = buf[:endmz]
 
-        if len(buf) > 0 and buf[-1] == 0:
-            buf = buf[0:-1]
+        self.StringTable = buf.decode(CODE_PAGE).rstrip('\x00').split('\x00')
 
-        self.StringTable = buf.decode(ed63rd.CODE_PAGE).split('\x00')
+        # print(buf.decode(CODE_PAGE))
 
         if ExtractText:
             textPosTable[self.scenaName] = [self.StringTable]
@@ -529,32 +523,20 @@ class ScenarioInfo:
 
         inst, fs = data.Instruction, data.FileStream
 
-        if inst.OpCode == ed63rd.SetPlaceName:
-            self.PlaceName = self.GetMapNameByIndex(inst.Operand[0])
-
-        if inst.OpCode not in [
-                ed63rd.ChrTalk,
-                ed63rd.AnonymousTalk,
-                ed63rd.NpcTalk,
-                ed63rd.Menu,
-                ed63rd.SetChrName
-            ]:
-            return
-
         if ExtractText:
-            if inst.OpCode == ed63rd.ChrTalk:
+            if inst.OpCode == ed6fc.ChrTalk:
                 text = inst.Operand[1]
                 textPosTable[self.scenaName].append([s.dump() for s in text])
 
-            elif inst.OpCode == ed63rd.AnonymousTalk:
+            elif inst.OpCode == ed6fc.AnonymousTalk:
                 text = inst.Operand[0]
                 textPosTable[self.scenaName].append([s.dump() for s in text])
 
-            elif inst.OpCode == ed63rd.NpcTalk:
+            elif inst.OpCode == ed6fc.NpcTalk:
                 for text in inst.Operand[1:]:
                     textPosTable[self.scenaName].append([s.dump() for s in text])
 
-            elif inst.OpCode in [ed63rd.Menu, ed63rd.SetChrName]:
+            elif inst.OpCode in [ed6fc.Menu, ed6fc.SetChrName]:
                 text = inst.Operand[-1]
                 textPosTable[self.scenaName].append([s.dump() for s in text])
 
@@ -564,64 +546,36 @@ class ScenarioInfo:
             except KeyError:
                 return
 
-            try:
-                ignoreText = replaceOption[self.scenaName]['text']
-            except KeyError:
-                ignoreText = None
-
-            def checkIgnore(oprlist):
-                if ignoreText is None:
-                    return
-
-                for i in oprlist:
-                    for string in inst.Operand[i]:
-                        string = str(string)
-                        for t in ignoreText:
-                            if t in string:
-                                return True
-
-                return False
-
-            if inst.OpCode == ed63rd.ChrTalk:
-                if checkIgnore([1]):
-                    return
-
+            if inst.OpCode == ed6fc.ChrTalk:
                 inst.Operand[1] = self.loadScpStringList(cntext[self.scenaTextIndex])
 
-            elif inst.OpCode == ed63rd.AnonymousTalk:
-                if checkIgnore([0]):
-                    return
-
+            elif inst.OpCode == ed6fc.AnonymousTalk:
                 inst.Operand[0] = self.loadScpStringList(cntext[self.scenaTextIndex])
 
-            elif inst.OpCode == ed63rd.NpcTalk:
-                if checkIgnore([1, 2]):
-                    return
-
+            elif inst.OpCode == ed6fc.NpcTalk:
                 inst.Operand[1] = self.loadScpStringList(cntext[self.scenaTextIndex])
                 inst.Operand[2] = self.loadScpStringList(cntext[self.scenaTextIndex + 1])
                 self.scenaTextIndex += 1
 
-            elif inst.OpCode in [ed63rd.Menu, ed63rd.SetChrName]:
-                if checkIgnore([-1]):
-                    return
-
+            elif inst.OpCode in [ed6fc.Menu, ed6fc.SetChrName]:
                 inst.Operand[-1] = self.loadScpStringList(cntext[self.scenaTextIndex])
+
+            else:
+                return
 
             self.scenaTextIndex += 1
 
     def loadScpStringList(self, paramList):
-        return [ed63rd.ScpString(**p) for p in paramList]
+        return [ed6fc.ScpString(**p) for p in paramList]
 
     def DisassembleBlocks(self, fs):
-        disasm = Disassembler(ed63rd.ed63rd_op_table, self.DiasmInstructionCallback)
+        disasm = Disassembler(ed6fc.ed6fc_op_table, self.DiasmInstructionCallback)
 
         index = -1
         codeblocks = []
         blockoffsetmap = {}
         for func in self.ScenaFunctions:
             index += 1
-            plog('Function_%d_%X' % (index, func))
             if func in blockoffsetmap:
                 codeblocks.append(blockoffsetmap[func])
                 continue
@@ -629,12 +583,17 @@ class ScenarioInfo:
             fs.seek(func)
 
             data = Disassembler.DisasmData()
+            # print('data',data)
             data.Stream = fs
             data.GlobalLabelTable = self.GlobalLabelTable
 
             block = disasm.DisasmBlock2(data)
 
-            block.Name = 'Function_%d_%X' % (index, block.Offset) if not USE_INDEX_LABEL_NAME else 'Function_%d' % index
+            block.Name = 'Function_%d_%X' % (index, block.Offset)
+
+            # print('blockname', block.Name, hex(func))
+            # print(disasm.FormatCodeBlock2(block))
+
             codeblocks.append(block)
 
             blockoffsetmap[func] = block
@@ -653,12 +612,11 @@ class ScenarioInfo:
         return l
 
     def FormatInstructionCallback(self, data, text):
-        if data.Instruction.OpCode == ed63rd.SetPlaceName and self.PlaceName:
-            return [text[0] + ' # ' + self.PlaceName]
+        pass
 
     def FormatCodeBlocks(self):
-        ed63rd.ed63rd_op_table.FunctionLabelList = self.GenerateFunctionLabelList(self.CodeBlocks)
-        disasm = Disassembler(ed63rd.ed63rd_op_table, self.FormatInstructionCallback)
+        ed6fc.ed6fc_op_table.FunctionLabelList = self.GenerateFunctionLabelList(self.CodeBlocks)
+        disasm = Disassembler(ed6fc.ed6fc_op_table, self.FormatInstructionCallback)
 
         blocks = []
         blockoffsetmap = {}
@@ -701,20 +659,16 @@ class ScenarioInfo:
         return lines
 
     def GenerateHeader(self, filename):
-        filename = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0] + '._SN'
+        filename = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0] + '.bin'
 
-        mapname = self.PlaceName or self.GetMapNameByIndex(self.MapIndex)
+        mapname = self.GetMapNameByIndex(self.MapIndex)
 
         align = 20
 
         hdr = []
         hdr.append('# -*- coding: cp932 -*-')
-        hdr.append('from ED63RDScenarioHelper import *')
+        hdr.append('from ED6EvoScenarioHelper import *')
         hdr.append('')
-        hdr.append('SetCodePage("%s")'                          % ed63rd.CODE_PAGE)
-        hdr.append('')
-
-        print('map', mapname)
 
         if mapname:
             hdr.append('# ' + mapname)
@@ -738,8 +692,13 @@ class ScenarioInfo:
         hdr += self.GenerateStringList()
 
         def AppendScpInfo(info, func):
+
+            print(info,func)
+
             if len(info) == 0:
-                return
+                hdr.append('%s(' % func)
+                hdr.append(')')
+                hdr.append('')
 
             for i in info:
                 if hasattr(i, 'params'):
@@ -831,21 +790,14 @@ class ScenarioInfo:
         filename = '%s%s' % (basename, ext)
 
         if append_place_name:
-            if not self.PlaceName:
-                self.PlaceName = self.GetMapNameByIndex(self.MapIndex)
-
-            if self.PlaceName:
-                filename = '%s.%s%s' % (basename, self.PlaceName, ext)
+            debugmap = ['a0000', 'map1', 'a0002']
+            if self.MapName.lower() not in debugmap:
+                mapname = self.GetMapNameByIndex(self.MapIndex)
+                if mapname != '':
+                    filename = '%s.%s%s' % (basename, mapname, ext)
 
         fs = open(filename, 'wb')
         fs.write(''.encode('cp932'))
-        # print([line for line in lines])
-        for line in lines:
-            try:
-                print (line)
-            except:
-                print('skip')
-                pass
         fs.write('\r\n'.join(lines).encode('cp932'))
 
     def __str__(self):
@@ -913,13 +865,24 @@ class ScenarioInfo:
 
         return '\r\n'.join(info)
 
+missing = set()
+failedfiles = []
 
 def procfile(file, append_place_name = True):
+    
     console.setTitle(os.path.basename(file))
-    print('disasm %s' % file)
-    scena = ScenarioInfo()
-    if scena.open(file) is not False:
-        scena.SaveToFile(os.path.splitext(file)[0] + '.py', append_place_name)
+    print('disasm %s ' % file, end='')
+    try:
+        scena = ScenarioInfo()
+        if scena.open(file) is not False:
+            scena.SaveToFile(os.path.splitext(file)[0] + '.py', append_place_name)
+            print('\tOK', end='')
+    except KeyError as e:
+        print('\t%s'%hex(int(str(e))), end='')
+        missing.add(hex(int(str(e))))
+        failedfiles.append((file, hex(int(str(e)))))
+
+    print()
 
 def main():
     global textPosTable, replaceOption
@@ -930,7 +893,7 @@ def main():
     #    textPosTable = json.load(open('fc_sn_text_final.json', 'r', encoding = 'utf-8-sig'))
     #    replaceOption = json.load(open('replace_option.json', 'r', encoding = 'utf-8-sig'))
 
-    cp = 'gbk'
+    cp = 'cp932'
     gp = r'D:\Steam\steamapps\common\Trails in the Sky FC'
     files = []
     i = 1
@@ -952,14 +915,14 @@ def main():
         elif sys.argv[i].lower() == '--indexlabel=true':
             use_index_lable = True
         else:
-            files.extend(iterlib.forEachGetFiles(sys.argv[i], '*._SN'))
+            files.extend(iterlib.forEachGetFiles(sys.argv[i], '*.bin'))
 
         i += 1
 
     global CODE_PAGE
     CODE_PAGE = cp
-    ed63rd.CODE_PAGE = cp
-    ed63rd.ed63rd_op_table.CodePage = cp
+    ed6fc.CODE_PAGE = cp
+    ed6fc.ed6fc_op_table.CodePage = cp
     setCodePage(cp);
 
     global GAME_PATH
@@ -970,16 +933,16 @@ def main():
     global USE_INDEX_LABEL_NAME
     if use_index_lable:
         USE_INDEX_LABEL_NAME = True
-        ed63rd.USE_INDEX_LABEL_NAME = True
-        ed63rd.UseIndexLabelName()
+        ed6fc.USE_INDEX_LABEL_NAME = True
+        ed6fc.UseIndexLabelName()
     
     #Log.OpenLog(sys.argv[start_argv] + '\..\log.txt')
 
     global LAMBDA_INDEX
     for file in files:
         plog('START %s' % file)
-        ed63rd.ResetIndex()
-        ed63rd.ResetLabmdaIndex()
+        ed6fc.ResetIndex()
+        ed6fc.ResetLabmdaIndex()
         procfile(file, append_place_name)
         plog('FINISHED %s' % file)
 
